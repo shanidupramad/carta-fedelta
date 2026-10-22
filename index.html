@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La mia carta fedeltà</title>
+<style>
+  :root{--c:#ea580c}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,sans-serif;background:#eef1f5;margin:0;padding:20px;text-align:center;color:#1e293b}
+  .box{max-width:420px;margin:auto;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 6px 24px #0002}
+  .testa{background:var(--c);color:#fff;padding:24px 20px}
+  .testa img{max-height:64px;margin-bottom:8px}
+  .testa h1{margin:0;font-size:26px}
+  .testa div.prem{margin-top:6px;opacity:.95}
+  .corpo{padding:20px}
+  input,button{font-size:18px;padding:13px;border-radius:12px;width:100%;margin:6px 0}
+  input{border:2px solid #cbd5e1}
+  input:focus,button:focus-visible{outline:3px solid var(--c);outline-offset:2px}
+  button{background:var(--c);color:#fff;border:0;font-weight:bold;cursor:pointer}
+  .griglia{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:18px 0}
+  .t{aspect-ratio:1;border-radius:50%;border:3px dashed var(--c);display:flex;align-items:center;justify-content:center;font-size:22px;opacity:.5}
+  .t.pieno{background:var(--c);color:#fff;opacity:1;border-style:solid}
+  .premio{background:#16a34a;color:#fff;padding:14px;border-radius:12px;font-weight:bold}
+  .install{font-size:14px;background:#f1f5f9;padding:10px;border-radius:10px;margin-top:16px}
+  .nota{font-size:12px;color:#64748b}
+  #qrbox{display:none}
+  #qr{display:flex;justify-content:center;margin:14px 0}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="testa" id="testa"><h1>Carta fedeltà</h1></div>
+  <div class="corpo">
+    <div id="login">
+      <p>Inserisci il tuo numero di cellulare per attivare la carta.</p>
+      <input id="tel" type="tel" placeholder="Il tuo numero di cellulare">
+      <button onclick="vedi()">Attiva la mia carta</button>
+    </div>
+    <div id="risultato"></div>
+    <div id="qrbox">
+      <p class="nota">Mostra questo QR in cassa per ricevere il timbro</p>
+      <div id="qr"></div>
+    </div>
+    <div class="install">📲 Tienila sempre con te: dal menu del browser scegli <b>"Aggiungi a schermata Home"</b>.</div>
+    <p class="nota">Usiamo il tuo numero solo per la carta fedeltà.</p>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const URL_API = "https://script.google.com/macros/s/AKfycbwmK8AAgcL9EIXb1x3LdXddMtCUySrLeQWnjuMugnhuN6MivEosg5cfKLZur0URmiaSrA/exec";
+const N = new URLSearchParams(location.search).get("n") || "";
+let info = null;
+
+async function api(params) {
+  const q = new URLSearchParams({ n: N, ...params }).toString();
+  return (await fetch(URL_API + "?" + q)).json();
+}
+
+async function avvia() {
+  const r = document.getElementById("risultato");
+  try {
+    const d = await api({ azione: "info" });
+    if (!d.ok) { document.querySelector(".corpo").innerHTML = "❌ " + d.msg + ". Controlla il link o il QR."; return; }
+    info = d.negozio;
+    document.documentElement.style.setProperty("--c", info.colore);
+    document.title = info.nome;
+    document.getElementById("testa").innerHTML =
+      (info.logo ? `<img src="${info.logo}" alt="">` : `<div style="font-size:42px">${info.emoji}</div>`) +
+      `<h1>${info.nome}</h1><div class="prem">Premio: ${info.premio}</div>`;
+    const tel = localStorage.getItem("tel");
+    if (tel) { document.getElementById("tel").value = tel; vedi(); }
+  } catch (e) { r.innerHTML = "Errore di connessione, riprova."; }
+}
+
+async function vedi() {
+  const tel = document.getElementById("tel").value.replace(/\D/g, "");
+  const r = document.getElementById("risultato");
+  r.innerHTML = "Caricamento...";
+  try {
+    const d = await api({ azione: "saldo", tel: tel });
+    if (!d.ok) { r.innerHTML = d.msg; return; }
+    localStorage.setItem("tel", tel);
+    document.getElementById("login").style.display = "none";
+    let html = '<div class="griglia">';
+    for (let i = 1; i <= d.soglia; i++)
+      html += `<div class="t ${i <= d.timbri ? 'pieno' : ''}">${i <= d.timbri ? info.emoji : i}</div>`;
+    html += "</div>";
+    html += d.premio
+      ? `<div class="premio">🎉 Hai vinto: ${info.premio}! Mostra questa carta in cassa.</div>`
+      : `<p>Ti mancano <b>${d.soglia - d.timbri}</b> timbri al premio!</p>`;
+    r.innerHTML = html;
+    document.getElementById("qr").innerHTML = "";
+    document.getElementById("qrbox").style.display = "block";
+    new QRCode(document.getElementById("qr"), { text: tel, width: 170, height: 170 });
+  } catch (e) { r.innerHTML = "Errore di connessione, riprova."; }
+}
+avvia();
+</script>
+</body>
+</html>
