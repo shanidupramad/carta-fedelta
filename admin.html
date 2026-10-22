@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin carta fedeltà</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,sans-serif;background:#eef1f5;margin:0;padding:20px;color:#1e293b}
+  .box{max-width:760px;margin:auto}
+  .card{background:#fff;border-radius:18px;padding:20px;box-shadow:0 6px 24px #0002;margin-bottom:16px}
+  input,button{font-size:17px;padding:12px;border-radius:12px;margin:6px 0}
+  input{border:2px solid #cbd5e1;width:100%}
+  button{background:#2563eb;color:#fff;border:0;font-weight:bold;cursor:pointer;width:100%}
+  .tot{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+  .tot div{background:#f1f5f9;border-radius:14px;padding:14px;text-align:center}
+  .tot b{display:block;font-size:30px}
+  .scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:520px}
+  th,td{padding:10px;text-align:right;border-bottom:1px solid #e2e8f0}
+  th:first-child,td:first-child{text-align:left}
+  th{font-size:14px;color:#475569}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="card" id="loginbox">
+    <h2>Admin</h2>
+    <input id="pw" type="password" placeholder="Password admin">
+    <button onclick="carica()">Mostra statistiche</button>
+    <div id="err" style="color:#b91c1c"></div>
+  </div>
+  <div id="dati" style="display:none">
+    <div class="card"><h2>Tutta la città</h2><div class="tot" id="tot"></div></div>
+    <div class="card">
+      <h2>Per negozio</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>Negozio</th><th>Clienti</th><th>Timbri</th><th>Ultimi 30 giorni</th><th>Premi</th></tr></thead>
+        <tbody id="righe"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+<script>
+const URL_API = "https://script.google.com/macros/s/AKfycbwmK8AAgcL9EIXb1x3LdXddMtCUySrLeQWnjuMugnhuN6MivEosg5cfKLZur0URmiaSrA/exec";
+async function carica() {
+  const pw = document.getElementById("pw").value;
+  const err = document.getElementById("err");
+  err.textContent = "Caricamento...";
+  try {
+    const d = await (await fetch(`${URL_API}?azione=stats&admin=${encodeURIComponent(pw)}`)).json();
+    if (!d.ok) { err.textContent = d.msg; return; }
+    err.textContent = "";
+    document.getElementById("loginbox").style.display = "none";
+    document.getElementById("dati").style.display = "block";
+    const t = d.totali;
+    document.getElementById("tot").innerHTML =
+      `<div><b>${t.negozi}</b>negozi</div><div><b>${t.clienti}</b>clienti</div><div><b>${t.timbri}</b>timbri</div><div><b>${t.premi}</b>premi</div>`;
+    document.getElementById("righe").innerHTML = d.negozi
+      .sort((a, b) => b.timbri - a.timbri)
+      .map(n => `<tr><td>${n.nome}</td><td>${n.clienti}</td><td>${n.timbri}</td><td>${n.timbri30}</td><td>${n.premi}</td></tr>`).join("");
+  } catch (e) { err.textContent = "Errore di connessione"; }
+}
+</script>
+</body>
+</html>
